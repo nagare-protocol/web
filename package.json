@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@privy-io/react-auth": "^2.24.0",
+    "@privy-io/server-auth": "^1.32.2",
     "@privy-io/wagmi": "^1.0.6",
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/query-core": "^5.87.4",
