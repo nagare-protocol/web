@@ -44,18 +44,21 @@ export type Database = {
           created_at: string
           id: number
           project_id: number | null
+          size: number | null
           text: string | null
         }
         Insert: {
           created_at?: string
           id?: number
           project_id?: number | null
+          size?: number | null
           text?: string | null
         }
         Update: {
           created_at?: string
           id?: number
           project_id?: number | null
+          size?: number | null
           text?: string | null
         }
         Relationships: [
@@ -78,6 +81,7 @@ export type Database = {
           end_date: string | null
           id: number
           owner: string
+          size: number | null
           start_date: string | null
           title: string | null
           worker: string | null
@@ -91,6 +95,7 @@ export type Database = {
           end_date?: string | null
           id?: number
           owner: string
+          size?: number | null
           start_date?: string | null
           title?: string | null
           worker?: string | null
@@ -104,6 +109,7 @@ export type Database = {
           end_date?: string | null
           id?: number
           owner?: string
+          size?: number | null
           start_date?: string | null
           title?: string | null
           worker?: string | null

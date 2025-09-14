@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { ApiReturnType } from "@/types/api";
 import { NextResponse } from "next/server";
 
-export type ProjectListApiResponse = Exclude<
+export type PayerProjectsApiResponse = Exclude<
   ApiReturnType<typeof GET>,
   { error: string }
 >;
@@ -27,23 +27,18 @@ export async function GET() {
     .from("projects")
     .select("*")
     .in("owner", wallets);
-  const workerProjects = await supabase
-    .from("projects")
-    .select("*")
-    .in("worker", wallets);
 
-  if (payerProjects.error || workerProjects.error) {
-    console.error("Database error:", payerProjects.error, workerProjects.error);
+  if (payerProjects.error) {
+    console.error("Database error:", payerProjects.error);
     return NextResponse.json(
       {
-        error: "Failed to fetch projects",
+        error: "Failed to fetch payer projects",
       },
       { status: 500 }
     );
   }
 
   return NextResponse.json({
-    payerProjects: payerProjects.data,
-    workerProjects: workerProjects.data,
+    projects: payerProjects.data,
   });
 }
