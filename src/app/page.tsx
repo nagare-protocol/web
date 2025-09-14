@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { ConnectButton } from "../components/ConnectButton";
 
 export default function Home() {
   return (
@@ -12,18 +15,21 @@ export default function Home() {
           height={38}
           priority
         />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+        <div className="w-full max-w-md">
+          <ConnectButton />
+        </div>
+
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-4">
+            Configuration Complete! ✅
+          </h2>
+          <ul className="space-y-2 text-sm">
+            <li>✅ Tailwind CSS v4</li>
+            <li>✅ Privy Auth + Wagmi</li>
+            <li>✅ Supabase</li>
+            <li>✅ React Query</li>
+          </ul>
+        </div>
 
         <div className="flex gap-4 items-center flex-col sm:flex-row">
           <a
