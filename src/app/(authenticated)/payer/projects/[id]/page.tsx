@@ -235,6 +235,8 @@ export default function Page() {
   ] as const;
 
   const handleStart = async () => {
+    await handleSave();
+
     if (!address || !project || !canStart()) return;
 
     try {
