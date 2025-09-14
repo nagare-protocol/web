@@ -1,15 +1,15 @@
-import { redirect } from 'next/navigation'
-import { getAuthenticatedUser } from '@/lib/auth'
-import { ConnectButton } from '@/components/ConnectButton'
-import { LogoIcon } from '@/components/LogoIcon'
+import { redirect } from "next/navigation";
+import { getAuthenticatedUser } from "@/lib/privy";
+import { ConnectButton } from "@/components/ConnectButton";
+import { LogoIcon } from "@/components/LogoIcon";
 
 export default async function Home() {
   // 檢查用戶是否已認證
-  const user = await getAuthenticatedUser()
+  const user = await getAuthenticatedUser();
 
   // 如果已認證，重定向到 /home
   if (user) {
-    redirect('/home')
+    redirect("/home");
   }
 
   return (
@@ -26,5 +26,5 @@ export default async function Home() {
         <ConnectButton />
       </div>
     </div>
-  )
+  );
 }
