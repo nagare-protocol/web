@@ -46,6 +46,7 @@ export type Database = {
           project_id: number | null
           size: number | null
           text: string | null
+          title: string | null
         }
         Insert: {
           created_at?: string
@@ -53,6 +54,7 @@ export type Database = {
           project_id?: number | null
           size?: number | null
           text?: string | null
+          title?: string | null
         }
         Update: {
           created_at?: string
@@ -60,6 +62,7 @@ export type Database = {
           project_id?: number | null
           size?: number | null
           text?: string | null
+          title?: string | null
         }
         Relationships: [
           {
