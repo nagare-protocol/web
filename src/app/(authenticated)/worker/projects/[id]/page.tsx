@@ -23,7 +23,7 @@ type Project = TablesInsert<"projects">;
 
 // Mock client data for display
 const mockClient = {
-  avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+  avatar: "/avatar.jpg",
   name: "John Smith",
   company: "Smith Design Studio",
   location: "New York, USA",
@@ -259,7 +259,9 @@ export default function Page() {
     }
 
     // Check if all milestones are completed
-    const allMilestonesCompleted = milestones.length > 0 && milestones.every(milestone => milestone.verified);
+    const allMilestonesCompleted =
+      milestones.length > 0 &&
+      milestones.every((milestone) => milestone.verified);
 
     if (allMilestonesCompleted) {
       return { status: "completed", label: "Completed", color: "green" };
