@@ -258,6 +258,13 @@ export default function Page() {
       return { status: "draft", label: "Draft", color: "gray" };
     }
 
+    // Check if all milestones are completed
+    const allMilestonesCompleted = milestones.length > 0 && milestones.every(milestone => milestone.verified);
+
+    if (allMilestonesCompleted) {
+      return { status: "completed", label: "Completed", color: "green" };
+    }
+
     // If has agreement_id, check dates
     const now = new Date();
     const startDate = project.start_date ? new Date(project.start_date) : null;
@@ -615,10 +622,12 @@ export default function Page() {
                   <div className="flex justify-end">
                     <button
                       onClick={() => handleVerifyClick(index)}
-                      disabled={milestone.verified}
+                      disabled={milestone.verified || !project.agreement_id}
                       className={`px-4 py-2 rounded-md font-medium transition-colors ${
                         milestone.verified
                           ? "bg-green-100 text-green-800 cursor-not-allowed"
+                          : !project.agreement_id
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                           : "bg-blue-600 hover:bg-blue-700 text-white"
                       }`}
                     >
