@@ -19,11 +19,21 @@ export async function GET() {
 
   const allocatedFunds = await supabase
     .from("projects")
-    .select("size.sum()")
+    .select("size.sum(), agreement_id")
+    .not("agreement_id", "is", null)
     .in("owner", wallets);
 
-  if (allocatedFunds.error) {
-    console.error("Database error:", allocatedFunds.error);
+  const allocatingFunds = await supabase
+    .from("projects")
+    .select("size.sum()")
+    .is("agreement_id", null)
+    .in("owner", wallets);
+
+  if (allocatedFunds.error || allocatingFunds.error) {
+    console.error(
+      "Database error:",
+      allocatedFunds.error || allocatingFunds.error
+    );
     return NextResponse.json(
       {
         error: "Failed to fetch allocated funds",
@@ -33,6 +43,8 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    allocated_funds: allocatedFunds.data?.[0].sum || 0,
+    allocated_funds: allocatedFunds.data?.[0]?.sum || 0,
+    allocating_funds: allocatingFunds.data?.[0]?.sum || 0,
+    agreements: allocatedFunds.data?.map((p) => p.agreement_id) || [],
   });
 }
