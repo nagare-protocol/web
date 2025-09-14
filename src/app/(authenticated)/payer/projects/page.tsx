@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { PayerProjectsApiResponse } from "../../api/projects/payer/route";
+import { useRouter } from "next/navigation";
+import { PayerProjectsApiResponse, ProjectCreateApiResponse } from "../../api/projects/payer/route";
 
 export default function Page() {
   const [projects, setProjects] = useState<PayerProjectsApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -39,10 +42,40 @@ export default function Page() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  const handleCreateProject = async () => {
+    setCreating(true);
+    try {
+      const response = await fetch("/api/projects/payer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data: ProjectCreateApiResponse = await response.json();
+        router.push(`/payer/projects/${data.id}`);
+      } else {
+        console.error("Failed to create project");
+      }
+    } catch (error) {
+      console.error("Failed to create project:", error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
+        <button
+          onClick={handleCreateProject}
+          disabled={creating}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
+        >
+          {creating ? "Creating..." : "New Project"}
+        </button>
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(28rem,1fr))] gap-6">

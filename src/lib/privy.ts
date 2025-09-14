@@ -1,6 +1,5 @@
 import "server-only";
 
-import { SmartWallet } from "@privy-io/react-auth";
 import { PrivyClient, User } from "@privy-io/server-auth";
 import { cookies } from "next/headers";
 
