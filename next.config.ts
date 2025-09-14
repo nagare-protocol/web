@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   images: {
     domains: ["randomuser.me"],
   },
+  serverExternalPackages: ["@reclaimprotocol/zk-fetch"],
 };
 
 export default nextConfig;

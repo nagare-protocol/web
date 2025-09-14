@@ -8,12 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "gen:db-types": "supabase gen types typescript --linked > ./src/types/supabase.ts"
+    "gen:db-types": "supabase gen types typescript --linked > ./src/types/supabase.ts",
+    "postinstall": "node node_modules/@reclaimprotocol/zk-symmetric-crypto/lib/scripts/download-files"
   },
   "dependencies": {
     "@privy-io/react-auth": "^2.24.0",
     "@privy-io/server-auth": "^1.32.2",
     "@privy-io/wagmi": "^1.0.6",
+    "@reclaimprotocol/js-sdk": "^4.4.2",
+    "@reclaimprotocol/zk-fetch": "^0.6.1",
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/query-core": "^5.87.4",
     "@tanstack/react-query": "^5.87.4",
@@ -34,8 +37,13 @@
     "@types/react-dom": "^19",
     "eslint": "^9.35.0",
     "eslint-config-next": "^15.5.3",
+    "ignore-loader": "^0.1.2",
+    "node-loader": "^2.1.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "resolutions": {
+    "@reclaimprotocol/tls": "git+ssh://git@github.com/reclaimprotocol/tls.git#8e0669a220341432673a20bb51f9339555701ef4"
   },
   "packageManager": "yarn@4.9.2+sha512.1fc009bc09d13cfd0e19efa44cbfc2b9cf6ca61482725eb35bbc5e257e093ebf4130db6dfe15d604ff4b79efd8e1e8e99b25fa7d0a6197c9f9826358d4d65c3c"
 }

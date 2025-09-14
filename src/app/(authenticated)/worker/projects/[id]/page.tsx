@@ -1,11 +1,16 @@
 "use client";
 
+import NagareAgreementMorpho from "@/abi/NagareAgreementMorpho";
+import { ProjectGetApiResponse } from "@/app/(authenticated)/api/projects/[id]/route";
 import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
+import { config } from "@/lib/wagmi";
 import { TablesInsert } from "@/types/supabase";
+import { waitForTransactionReceipt, writeContract } from "@wagmi/core";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import Image from "next/image";
-import { ProjectGetApiResponse } from "@/app/(authenticated)/api/projects/[id]/route";
+import { parseEventLogs } from "viem";
+import { useAccount } from "wagmi";
 
 interface Milestone {
   title: string;
@@ -49,8 +54,14 @@ export default function Page() {
   const [selectedMilestoneIndex, setSelectedMilestoneIndex] = useState<
     number | null
   >(null);
-  const [verificationHash, setVerificationHash] = useState("");
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [castHash, setCastHash] = useState("");
+  const [showProofDialog, setShowProofDialog] = useState(false);
+  const [proof, setProof] = useState<string>();
+  const { address } = useAccount();
+  const AGREEMENT_ADDRESS = process.env
+    .NEXT_PUBLIC_AGREEMENT_ADDRESS as `0x${string}`;
 
   useEffect(() => {
     setBreadcrumbs([
@@ -102,11 +113,84 @@ export default function Page() {
   };
 
   const handleVerifySubmit = async () => {
-    if (selectedMilestoneIndex !== null && verificationHash.trim()) {
-      setVerifyError(null); // Clear any previous errors
+    if (selectedMilestoneIndex !== null && castHash.trim() && project) {
+      setVerifyError(null);
+      setIsVerifying(true);
 
       try {
-        // Send PUT request to verify checkpoint
+        // Step 1: Get Reclaim Proof from API
+        const additionalInfo = project.additional_information as Record<
+          string,
+          unknown
+        >;
+        const fid = additionalInfo?.fid as number;
+        const milestone = milestones[selectedMilestoneIndex];
+
+        const verifyResponse = await fetch("/api/verify-milestone", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fid,
+            castHash: castHash.trim(),
+            expectedText: milestone.text,
+          }),
+        });
+
+        if (!verifyResponse.ok) {
+          const errorData = await verifyResponse.json();
+          throw new Error(errorData.error || "Failed to verify milestone");
+        }
+
+        const { onchainProof } = await verifyResponse.json();
+        setProof(onchainProof);
+        setShowVerifyDialog(false);
+        setShowProofDialog(true);
+      } catch (error) {
+        setVerifyError(
+          error instanceof Error ? error.message : "Failed to verify milestone"
+        );
+      } finally {
+        setIsVerifying(false);
+      }
+    }
+  };
+
+  const handleCheckpointSubmit = async () => {
+    if (!proof || selectedMilestoneIndex === null || !project || !address)
+      return;
+
+    setIsVerifying(true);
+    setVerifyError(null);
+
+    try {
+      // Call checkpoint function on Agreement contract
+      const tx = await writeContract(config, {
+        address: AGREEMENT_ADDRESS,
+        abi: NagareAgreementMorpho,
+        functionName: "checkpoint",
+        args: [
+          BigInt(project.agreement_id!),
+          BigInt(selectedMilestoneIndex),
+          proof as `0x${string}`,
+        ],
+      });
+
+      // Wait for transaction receipt
+      const receipt = await waitForTransactionReceipt(config, {
+        hash: tx,
+      });
+
+      // Parse CheckpointCompleted event
+      const parsedLogs = parseEventLogs({
+        abi: NagareAgreementMorpho,
+        logs: receipt.logs,
+        eventName: "CheckpointCompleted",
+      });
+
+      if (parsedLogs.length > 0) {
+        // Update milestone status in database
         const response = await fetch(`/api/projects/${params.id}/checkpoints`, {
           method: "PUT",
           headers: {
@@ -127,25 +211,42 @@ export default function Page() {
             )
           );
 
-          // Close dialog and reset form
-          setShowVerifyDialog(false);
+          // Reset form and close dialogs
+          setShowProofDialog(false);
           setSelectedMilestoneIndex(null);
-          setVerificationHash("");
+          setCastHash("");
+          setProof(undefined);
         } else {
           const errorData = await response.json();
-          setVerifyError(errorData.message || "Failed to verify checkpoint");
+          setVerifyError(
+            errorData.message || "Failed to update checkpoint status"
+          );
         }
-      } catch (error) {
-        setVerifyError("Network error occurred while verifying checkpoint");
-        console.error("Error verifying checkpoint:", error);
+      } else {
+        throw new Error("CheckpointCompleted event not found in transaction");
       }
+    } catch (error) {
+      setVerifyError(
+        error instanceof Error ? error.message : "Failed to submit checkpoint"
+      );
+      console.error("Error submitting checkpoint:", error);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
   const handleVerifyCancel = () => {
     setShowVerifyDialog(false);
     setSelectedMilestoneIndex(null);
-    setVerificationHash("");
+    setCastHash("");
+    setVerifyError(null);
+  };
+
+  const handleProofCancel = () => {
+    setShowProofDialog(false);
+    setSelectedMilestoneIndex(null);
+    setCastHash("");
+    setProof(undefined);
     setVerifyError(null);
   };
 
@@ -539,19 +640,19 @@ export default function Page() {
               Verify Milestone Completion
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Please provide a verification hash to confirm the completion of
-              this milestone.
+              Please provide the Farcaster cast hash that contains the milestone
+              completion proof.
             </p>
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Verification Hash
+                Farcaster Cast Hash
               </label>
               <input
                 type="text"
-                value={verificationHash}
-                onChange={(e) => setVerificationHash(e.target.value)}
+                value={castHash}
+                onChange={(e) => setCastHash(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter verification hash..."
+                placeholder="Enter cast hash (e.g., 0x0fedfbac29f8cac8a2f8fa1eea5da8a8e15571ee)"
                 autoFocus
               />
             </div>
@@ -569,14 +670,62 @@ export default function Page() {
               </button>
               <button
                 onClick={handleVerifySubmit}
-                disabled={!verificationHash.trim()}
+                disabled={!castHash.trim() || isVerifying}
                 className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                  verificationHash.trim()
+                  castHash.trim() && !isVerifying
                     ? "bg-blue-600 hover:bg-blue-700 text-white"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
               >
-                Verify
+                {isVerifying ? "Verifying..." : "Get Proof"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Proof Submission Dialog */}
+      {showProofDialog && proof && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Submit Checkpoint
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Proof verification successful! Click submit to complete the
+              checkpoint on-chain.
+            </p>
+            <div className="mb-6">
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-800">
+                  ✓ Cast content verified against milestone text
+                  <br />✓ Reclaim proof generated successfully
+                </p>
+              </div>
+            </div>
+            {verifyError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{verifyError}</p>
+              </div>
+            )}
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleProofCancel}
+                disabled={isVerifying}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCheckpointSubmit}
+                disabled={isVerifying}
+                className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                  !isVerifying
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                {isVerifying ? "Submitting..." : "Submit Checkpoint"}
               </button>
             </div>
           </div>
