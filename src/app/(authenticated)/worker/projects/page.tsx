@@ -3,10 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { WorkerProjectsApiResponse } from "../../api/projects/worker/route";
+import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
 
 export default function Page() {
   const [projects, setProjects] = useState<WorkerProjectsApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const { setBreadcrumbs } = useBreadcrumb();
+
+  useEffect(() => {
+    setBreadcrumbs([
+      { text: "Home", path: "/home" },
+      { text: "My Projects" }
+    ]);
+  }, [setBreadcrumbs]);
 
   useEffect(() => {
     const fetchProjects = async () => {

@@ -3,13 +3,24 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PayerProjectsApiResponse, ProjectCreateApiResponse } from "../../api/projects/payer/route";
+import {
+  PayerProjectsApiResponse,
+  ProjectCreateApiResponse,
+} from "../../api/projects/payer/route";
+import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
 
 export default function Page() {
-  const [projects, setProjects] = useState<PayerProjectsApiResponse | null>(null);
+  const [projects, setProjects] = useState<PayerProjectsApiResponse | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const router = useRouter();
+  const { setBreadcrumbs } = useBreadcrumb();
+
+  useEffect(() => {
+    setBreadcrumbs([{ text: "Projects" }]);
+  }, [setBreadcrumbs]);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -103,7 +114,9 @@ export default function Page() {
               </p>
               <div className="flex justify-between items-center text-sm text-gray-500">
                 <span>Worker: {formatAddress(project.worker)}</span>
-                <span>Created: {new Date(project.created_at).toLocaleDateString()}</span>
+                <span>
+                  Created: {new Date(project.created_at).toLocaleDateString()}
+                </span>
               </div>
             </Link>
           ))

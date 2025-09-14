@@ -2,35 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { BsBell, BsChevronDown } from "react-icons/bs";
+import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
 
 export function TopNav() {
-  const pathname = usePathname();
-
-  const getBreadcrumbs = () => {
-    const segments = pathname.split('/').filter(Boolean);
-    const breadcrumbs = ['Home'];
-
-    segments.forEach((segment) => {
-      switch (segment) {
-        case 'home':
-          break;
-        case 'projects':
-          breadcrumbs.push('Projects');
-          break;
-        case 'payroll-vault':
-          breadcrumbs.push('Payroll Vault');
-          break;
-        default:
-          breadcrumbs.push(segment.charAt(0).toUpperCase() + segment.slice(1));
-      }
-    });
-
-    return breadcrumbs;
-  };
-
-  const breadcrumbs = getBreadcrumbs();
+  const router = useRouter();
+  const { breadcrumbs } = useBreadcrumb();
   const { user, logout } = usePrivy();
   const [isAvatarDropdownOpen, setIsAvatarDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -71,15 +49,28 @@ export function TopNav() {
         {breadcrumbs.map((crumb, index) => (
           <span key={index} className="flex items-center">
             {index > 0 && <span className="text-gray-400 mx-2">/</span>}
-            <span
-              className={
-                index === breadcrumbs.length - 1
-                  ? "text-gray-900 font-medium"
-                  : "text-gray-500"
-              }
-            >
-              {crumb}
-            </span>
+            {crumb.path ? (
+              <button
+                onClick={() => router.push(crumb.path!)}
+                className={`transition-colors hover:text-gray-700 cursor-pointer ${
+                  index === breadcrumbs.length - 1
+                    ? "text-gray-900 font-medium"
+                    : "text-gray-500"
+                }`}
+              >
+                {crumb.text}
+              </button>
+            ) : (
+              <span
+                className={
+                  index === breadcrumbs.length - 1
+                    ? "text-gray-900 font-medium"
+                    : "text-gray-500"
+                }
+              >
+                {crumb.text}
+              </span>
+            )}
           </span>
         ))}
       </div>

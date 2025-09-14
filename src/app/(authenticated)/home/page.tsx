@@ -1,9 +1,17 @@
 "use client";
 
+import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
 import Link from "next/link";
+import { useEffect } from "react";
 import { BsCreditCard, BsPerson } from "react-icons/bs";
 
 export default function Page() {
+  const { setBreadcrumbs } = useBreadcrumb();
+
+  useEffect(() => {
+    setBreadcrumbs([{ text: "Home" }]);
+  }, [setBreadcrumbs]);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-96">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">
