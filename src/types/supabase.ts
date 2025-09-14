@@ -39,34 +39,28 @@ export type Database = {
   }
   public: {
     Tables: {
-      milestones: {
+      completed_checkpoints: {
         Row: {
+          checkpoint_id: number
           created_at: string
           id: number
-          project_id: number | null
-          size: number | null
-          text: string | null
-          title: string | null
+          project_id: number
         }
         Insert: {
+          checkpoint_id: number
           created_at?: string
           id?: number
-          project_id?: number | null
-          size?: number | null
-          text?: string | null
-          title?: string | null
+          project_id: number
         }
         Update: {
+          checkpoint_id?: number
           created_at?: string
           id?: number
-          project_id?: number | null
-          size?: number | null
-          text?: string | null
-          title?: string | null
+          project_id?: number
         }
         Relationships: [
           {
-            foreignKeyName: "milestones_project_id_fkey"
+            foreignKeyName: "completed_checkpoints_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"

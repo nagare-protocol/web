@@ -29,7 +29,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("projects")
-    .select("*")
+    .select("*, completed_checkpoints(checkpoint_id)")
     .eq("id", Number((await params).id))
     .single();
 
