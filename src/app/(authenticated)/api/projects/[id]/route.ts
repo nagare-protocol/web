@@ -117,9 +117,7 @@ export async function PATCH(
   }
 
   // Prepare update data
-  const { fid, milestones, worker, start_date, end_date, ...projectFields } =
-    updateData;
-  const additionalInfo = { fid, milestones };
+  const { worker, start_date, end_date, ...projectFields } = updateData;
 
   if (worker && typeof worker === "string" && !isAddress(worker)) {
     return NextResponse.json(
@@ -134,10 +132,9 @@ export async function PATCH(
     .from("projects")
     .update({
       ...projectFields,
-      start_date: start_date ? new Date(start_date) : null,
-      end_date: end_date ? new Date(end_date) : null,
-      worker: worker.toLowerCase(),
-      additional_information: additionalInfo,
+      start_date: start_date ? new Date(start_date) : undefined,
+      end_date: end_date ? new Date(end_date) : undefined,
+      worker: worker ? worker.toLowerCase() : undefined,
     })
     .eq("id", projectId)
     .select()

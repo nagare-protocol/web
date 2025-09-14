@@ -1,10 +1,19 @@
 "use client";
 
+import NagareAgreementMorpho from "@/abi/NagareAgreementMorpho";
 import { useBreadcrumb } from "@/contexts/BreadcrumbContext";
+import { config } from "@/lib/wagmi";
 import { TablesInsert } from "@/types/supabase";
+import { waitForTransactionReceipt, writeContract } from "@wagmi/core";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { isAddress } from "viem";
+import {
+  encodeAbiParameters,
+  isAddress,
+  parseEventLogs,
+  parseUnits,
+} from "viem";
+import { useAccount } from "wagmi";
 
 interface Milestone {
   title: string;
@@ -21,8 +30,10 @@ export default function Page() {
   const params = useParams();
   const router = useRouter();
   const { setBreadcrumbs } = useBreadcrumb();
+  const { address } = useAccount();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -34,6 +45,12 @@ export default function Page() {
     worker: "",
   });
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+
+  const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC_ADDRESS as `0x${string}`;
+  const AGREEMENT_ADDRESS = process.env
+    .NEXT_PUBLIC_AGREEMENT_ADDRESS as `0x${string}`;
+  const VERIFIER_ADDRESS = process.env
+    .NEXT_PUBLIC_VERIFIER_ADDRESS as `0x${string}`;
 
   const isReadOnly = project?.agreement_id !== null;
 
@@ -58,8 +75,12 @@ export default function Page() {
           setFormData({
             title: data.project.title || "",
             description: data.project.description || "",
-            start_date: data.project.start_date || "",
-            end_date: data.project.end_date || "",
+            start_date: data.project.start_date
+              ? data.project.start_date.split("T")[0]
+              : "",
+            end_date: data.project.end_date
+              ? data.project.end_date.split("T")[0]
+              : "",
             catagory: data.project.catagory || "",
             size: data.project.size?.toString() || "",
             fid: additionalInfo?.fid?.toString() || "",
@@ -167,10 +188,17 @@ export default function Page() {
   const handleSave = async () => {
     try {
       const payload = {
-        ...formData,
-        fid: formData.fid ? Number(formData.fid) : null,
+        title: formData.title,
+        description: formData.description,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        catagory: formData.catagory,
         size: formData.size ? Number(formData.size) : null,
-        milestones,
+        worker: formData.worker,
+        additional_information: {
+          fid: formData.fid ? Number(formData.fid) : null,
+          milestones,
+        },
       };
 
       const response = await fetch(`/api/projects/${params.id}`, {
@@ -189,6 +217,140 @@ export default function Page() {
       }
     } catch (error) {
       console.error("Failed to save project:", error);
+    }
+  };
+
+  // ERC20 ABI for approval
+  const ERC20_ABI = [
+    {
+      inputs: [
+        { name: "spender", type: "address" },
+        { name: "amount", type: "uint256" },
+      ],
+      name: "approve",
+      outputs: [{ name: "", type: "bool" }],
+      stateMutability: "nonpayable",
+      type: "function",
+    },
+  ] as const;
+
+  const handleStart = async () => {
+    if (!address || !project || !canStart()) return;
+
+    try {
+      setStarting(true);
+
+      // Step 1: Approve USDC tokens
+      const projectSize = parseUnits(formData.size, 6); // USDC has 6 decimals
+
+      console.log("Approving USDC tokens...");
+      const approveTx = await writeContract(config, {
+        address: USDC_ADDRESS,
+        abi: ERC20_ABI,
+        functionName: "approve",
+        args: [AGREEMENT_ADDRESS, projectSize],
+      });
+
+      await waitForTransactionReceipt(config, {
+        hash: approveTx,
+      });
+
+      // Step 2: Prepare contract info (VerifierConfig)
+      const checkpointTexts = milestones.map((m) => m.text);
+      const endDateTimestamp = Math.floor(
+        new Date(formData.end_date).getTime() / 1000
+      );
+
+      const contractInfo = encodeAbiParameters(
+        [
+          { name: "fid", type: "uint256" },
+          { name: "checkpointTexts", type: "string[]" },
+          { name: "deadline", type: "uint256" },
+        ],
+        [BigInt(formData.fid || "0"), checkpointTexts, BigInt(endDateTimestamp)]
+      );
+
+      // Step 3: Prepare checkpoint sizes
+      const checkpointSize = milestones.map((m) =>
+        parseUnits(m.size?.toString() || "0", 6)
+      );
+
+      // Step 4: Call startAgreement
+      console.log("Starting agreement...");
+      console.log({
+        address: AGREEMENT_ADDRESS,
+        abi: NagareAgreementMorpho,
+        functionName: "startAgreement",
+        args: [
+          {
+            verifier: VERIFIER_ADDRESS,
+            contractInfo,
+            totalSize: projectSize,
+            checkpointSize,
+            receiver: formData.worker as `0x${string}`,
+            provider: address,
+          },
+        ],
+      });
+      const startTx = await writeContract(config, {
+        address: AGREEMENT_ADDRESS,
+        abi: NagareAgreementMorpho,
+        functionName: "startAgreement",
+        args: [
+          {
+            verifier: VERIFIER_ADDRESS,
+            contractInfo,
+            totalSize: projectSize,
+            checkpointSize,
+            receiver: formData.worker as `0x${string}`,
+            provider: address,
+          },
+        ],
+      });
+
+      // Step 5: Wait for transaction and extract agreement_id
+      const receipt = await waitForTransactionReceipt(config, {
+        hash: startTx,
+      });
+
+      // Parse AgreementStarted event
+      const parsedLogs = parseEventLogs({
+        abi: NagareAgreementMorpho,
+        logs: receipt.logs,
+        eventName: "AgreementStarted",
+      });
+
+      if (parsedLogs.length === 0) {
+        throw new Error("AgreementStarted event not found");
+      }
+
+      const agreementId = Number(parsedLogs[0].args.agreementId);
+
+      // Step 6: Update project with agreement_id
+      const updateResponse = await fetch(`/api/projects/${params.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ agreement_id: agreementId }),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error("Failed to update project with agreement_id");
+      }
+
+      // Step 7: Reload project data
+      const response = await fetch(`/api/projects/${params.id}`);
+      if (response.ok) {
+        const data: ProjectApiResponse = await response.json();
+        setProject(data.project);
+      }
+
+      console.log("Agreement started successfully!");
+    } catch (error) {
+      console.error("Failed to start agreement:", error);
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -511,14 +673,15 @@ export default function Page() {
             Save
           </button>
           <button
-            disabled={!canStart()}
+            onClick={handleStart}
+            disabled={!canStart() || starting}
             className={`px-4 py-2 rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed ${
-              canStart()
+              canStart() && !starting
                 ? "bg-blue-600 text-white hover:bg-blue-700"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
-            Start
+            {starting ? "Starting..." : "Start"}
           </button>
         </div>
       )}

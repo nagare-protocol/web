@@ -66,7 +66,7 @@ export async function POST() {
     .insert({
       title: "New Project",
       description: "Project description",
-      owner: defaultWallet.address,
+      owner: defaultWallet.address.toLowerCase(),
     })
     .select()
     .single();
